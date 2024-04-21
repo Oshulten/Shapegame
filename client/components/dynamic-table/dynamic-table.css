@@ -1,0 +1,38 @@
+dynamic-table {
+    flex: 1 0 auto;
+    width: 100%;
+    display: flex;
+    align-items: top;
+    justify-content: space-around;
+    color: white;
+    overflow: auto;
+}
+
+table {
+    width: 100%;
+}
+
+
+thead {
+    background-color: black;
+}
+
+tr {
+    background-color: #000000a1;
+}
+
+tr:nth-child(even) {
+    background-color: #00000073;
+}
+
+tr.selected {
+    background-color: rgb(21, 15, 44);
+}
+
+td, th {
+    padding: 1em;   
+}
+
+td:nth-child(odd), th:nth-child(odd) {
+    color: rgb(159, 198, 213); 
+}

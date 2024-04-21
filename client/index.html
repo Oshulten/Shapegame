@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shape Game</title>
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Josefin+Sans">
+    <link rel="stylesheet" type="text/css" href="index.css"/>
+
+    <script src="modules/matter.js" type="text/javascript"></script>
+    <!-- Components-->
+        <!-- Toolbar -->
+            <script src="components/tool-bar/tool-bar.js"></script>
+            <link rel="stylesheet" type="text/css" href="components/tool-bar/tool-bar.css"/>
+        <!-- Command prompt-->
+            <script src="components/command-prompt/command-prompt.js"></script>
+            <link rel="stylesheet" type="text/css" href="components/command-prompt/command-prompt.css"/>
+        <!-- Floating window -->
+            <script src="components/floating-window/floating-window.js"></script>
+            <link rel="stylesheet" type="text/css" href="components/floating-window/floating-window.css"/>
+        <!-- Dynamic table -->
+            <script src="components/dynamic-table/dynamic-table.js"></script>
+            <link rel="stylesheet" type="text/css" href="components/dynamic-table/dynamic-table.css"/>
+        <!-- Toggle button -->
+            <script src="components/toggle-button/toggle-button.js"></script>
+            <link rel="stylesheet" type="text/css" href="components/toggle-button/toggle-button.css"/>'
+        <!-- Context menu -->
+            <script src="components/context-menu/context-menu.js"></script>
+            <link rel="stylesheet" type="text/css" href="components/context-menu/context-menu.css"/>
+    <!-- Document script -->
+    <script src="index.js" type="module" defer></script>
+</head>
+<body>
+    <canvas id="world-canvas"></canvas>
+
+    <floating-window title="Open World..." id="open-world-window" hidden="true">
+        <dynamic-table id="open-world-table"></dynamic-table>
+    </floating-window>
+
+    <floating-window title="Demos..." id="open-demos-window" hidden="true">
+        <dynamic-table id="demos-table"></dynamic-table>
+    </floating-window>
+
+    <floating-window title="Layers" id="layer-window" hidden="true">
+        <dynamic-table id="layer-table"></dynamic-table>
+        <button>New Layer</button>
+    </floating-window>
+
+    <tool-bar>
+        <input type="text" id="world-name" placeholder="World name"/>
+        <button id="toolbar-save-world">Save World</button>
+        <button id="toolbar-open-world">Open World...</button>
+        <button id="toolbar-layers">Layers...</button>
+        <button id="toolbar-open-demos">Demos...</button>
+        <toggle-button id="run-toggle" label="Run Physics" on="false"></toggle-button>
+        <toggle-button id="set-static" label="Create Live" on="false"></toggle-button>
+    </tool-bar>
+    
+    <context-menu class="hide">
+        <button>Possess</button>
+        <button>Something else</button>
+        <button>A third thing</button>
+    </context-menu>
+
+    <command-prompt></command-prompt>¨
+</body>
+</html>

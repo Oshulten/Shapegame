@@ -1,0 +1,43 @@
+context-menu {
+    position: absolute;
+    left: 50px;
+    top: 50px;
+    background-color: rgba(255, 255, 255, 0.747);
+    border-radius: 3px;
+    box-shadow: 4px 4px rgba(0, 0, 0, 0.284); 
+    z-index: 1;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    padding: 0.3em;
+    animation: 100ms fadein;
+}
+
+context-menu.hide {
+    animation: 200ms fadeaway;
+    display: none;
+}
+
+@keyframes fadeaway {
+    from { display: flex }
+    to { opacity: 0 }
+}
+
+@keyframes fadein {
+    from { opacity: 0 }
+    to { opacity: 1 }
+}
+
+context-menu button {
+    background-color: transparent;
+    border: none;
+    padding: 0.5em;
+    border-radius: inherit;
+    transition: 50ms;
+    cursor: pointer;
+    font: inherit;
+}
+
+context-menu button:hover {
+    background-color: rgba(55, 55, 177, 0.526);
+}

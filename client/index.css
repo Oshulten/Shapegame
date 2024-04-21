@@ -1,0 +1,30 @@
+:root {
+  --font-primary: "Josefin Sans";
+  --font-base-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-primary), sans-serif;
+  font-size: var(--font-base-size);
+}
+
+body {
+  margin: 0px;
+  padding: 0px;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+canvas.fullscreen {
+  width: 100%;
+  height: 100%;
+  background-color: rgb(2, 5, 35);
+  position: fixed;
+  top: 0px;
+  left: 0px;
+}

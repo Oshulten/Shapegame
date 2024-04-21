@@ -1,0 +1,34 @@
+toggle-button {
+    border: none;
+    padding: 0px;
+}
+
+toggle-button .container {
+    height: 2lh;
+    display: flex;
+    align-items: center;
+    justify-items: center;
+    gap: 1em;
+    padding: 0px;
+}
+
+toggle-button span {
+    flex: 0 1 auto;
+    size: 1em;
+    text-align: left;
+}
+
+toggle-button .outer {
+    transition: 100ms ease-out;
+    background-color: rgb(50, 53, 63); 
+    display: inline block;
+    flex: 1 0 auto;
+}
+
+toggle-button .outer.on {
+    background-color: rgb(61, 91, 182); 
+}
+
+toggle-button .inner {
+    background-color: rgba(255, 255, 255, 0.488); 
+}

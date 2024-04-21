@@ -1,0 +1,52 @@
+floating-window {
+    position: absolute;
+    left: 50px;
+    top: 50px;
+    width: 600px;
+    height: 400px;
+    background-color: rgba(255, 255, 255, 0.508);
+    border-radius: 5px;
+    box-shadow: 5px 5px rgba(0, 0, 0, 0.466); 
+    overflow: hidden;
+    z-index: 1;
+    user-select: none;
+}
+
+floating-window div.top-bar {
+    position: absolute;
+    height: 2em;
+    width: 100%;
+    background-color: rgba(71, 71, 173, 0.521);
+    color: white;
+    padding: 0.5em;
+    box-shadow: 0px 2px 1px rgba(0, 0, 0, 0.466); 
+}
+
+floating-window div.top-bar span.title {
+    position: absolute;
+    left: 0.5em;
+    top: 0.5em;
+}
+
+floating-window div.top-bar span.exit {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
+    cursor: pointer;
+}
+
+floating-window div.content {
+    position: absolute;
+    top: 2em;
+    width: 100%;
+    height: calc(100% - 2em);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.5em;
+    padding: 1em;
+}
+
+floating-window div.content > * {
+    flex: 0 1 auto;
+}
