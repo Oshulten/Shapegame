@@ -18,6 +18,7 @@ const databaseLabel = "worldDatabase";
 
 (async () => {
     try {
+        console.log("Starting client script.");
         //Get canvas element. If none is found, do not continue script
         const canvas = document.querySelector("canvas#world-canvas");
         if (!canvas) throw new ReferenceError("No canvas element is present in the document.");
@@ -29,7 +30,6 @@ const databaseLabel = "worldDatabase";
 
         //Initializes static World
         await World.initializeDatabase(databaseLabel);
-
         // console.log(World.worldObjects);
         // Attempt to load a default world from server
         // If failed, create an empty world instead
@@ -64,6 +64,7 @@ const databaseLabel = "worldDatabase";
                 saveWorldBtn.addEventListener("click", (event) => {
                     if (world && toolbar.worldName.value.length !== 0) {
                         World.saveWorld(world, toolbar.worldName.value + ".json");
+                        window.alert(`World saved as ${toolbar.worldName.value}.json`);
                     } else {
                         window.alert("A world name is needed.");
                     }
@@ -111,6 +112,19 @@ const databaseLabel = "worldDatabase";
                     });
                 });
             }
+            if (runPhysicsToggle) {
+                runPhysicsToggle.addEventListener("change", (event) => {
+                    world.runPhysics(event.detail.on);
+                });
+                world.runPhysics(runPhysicsToggle.atts.on);
+            }
+            if (setStaticToggle) {
+                setStaticToggle.addEventListener("change", (event) => {
+                    world.workshop.settings.createStaticShapes = !event.detail.on;
+                    console.log("Static shapes: ", world.workshop.settings.createStaticShapes);
+                });
+                world.workshop.settings.createStaticShapes = !setStaticToggle.atts.on;
+            }
         } else console.error("No toolbar element is present in the document.");
 
         //Prompt
@@ -119,10 +133,6 @@ const databaseLabel = "worldDatabase";
                 if (!world.workshop.tryCommand(text)) {
                     const words = text.split(" ");
                     switch (words[0]) {
-                        case "generateworld":
-                            world = World.GeneratedWorldA(canvas);
-                            world.start();
-                            break;
                         case "layers":
                             layerWindow.toggle();
                             break;
@@ -135,24 +145,6 @@ const databaseLabel = "worldDatabase";
                         case "snap":
                             world.workshop.grid.snap = !world.workshop.grid.snap;
                             break;
-                        case "serverworlds":
-                            synchronizeUI(world);
-                            console.log(worldNames);
-                            break;
-                        case "loadworld":
-                            if (words[1]) {
-                                try {
-                                    const newWorld = new World(context, words[1]);
-                                    world = newWorld;
-                                    synchronizeUI(world);
-                                    world.start();
-                                } catch (error) {
-                                    console.error(error);
-                                }
-                            } else {
-                                console.log("A world name is needed.");
-                            }
-
                         default:
                             return;
                     }
@@ -166,18 +158,6 @@ const databaseLabel = "worldDatabase";
                 }
             });
             prompt.focus();
-        }
-        if (runPhysicsToggle) {
-            runPhysicsToggle.addEventListener("change", (event) => {
-                world.runPhysics(event.detail.on);
-            });
-            world.runPhysics(runPhysicsToggle.atts.on);
-        }
-        if (setStaticToggle) {
-            setStaticToggle.addEventListener("change", (event) => {
-                world.workshop.createStaticShapes = !event.detail.on;
-            });
-            world.workshop.createStaticShapes = !setStaticToggle.atts.on;
         }
 
         if (worldTable) {

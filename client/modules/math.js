@@ -2,58 +2,69 @@
 export const math = {
     vectorFillDefault: "repeat",
     vectorFill: "repeat",
+    inRange: function (v, range) {
+        return (v >= range[0] && v <= range[1]) || (v >= range[1] && v <= range[0]);
+    },
     snapTo(v, snapInterval, snapOffset = 0) {
         return Math.round((v - snapOffset) / snapInterval) * snapInterval + snapOffset;
     },
-    uniformFloat: function (min, max) {
-        return Math.random() * (max - min) + min;
-    },
-    uniformFloats: function (range, amount) {
-        const result = [];
-        for (let i = 0; i < amount; i++) {
-            result.push(math.uniformFloat(range[0], range[1]));
+    uniformFloat: function (range, amount = 1) {
+        if (amount === 1)
+            return Math.random() * (range[1] - range[0]) + range[0];
+        else {
+            const result = [];
+            for (let i = 0; i < amount; i++) {
+                result.push(Math.random() * (range[1] - range[0]) + range[0]);
+            }
+            return result;
         }
-        return result;
     },
-    uniformInt: function (min, max) {
-        return Math.round(Math.random() * (max - min) + min);
+    uniformInt: function (range, amount = 1) {
+        const result = math.uniformFloat(range, amount);
+        if (typeof result === "number")
+            return Math.round(result);
+        else
+            return result.map((x) => Math.round(x));
     },
-    clamp: function (value, min, max) {
-        if (value > max) return max;
-        if (value < min) return min;
-        return value;
+    clamp: function (value, range) {
+        if (typeof value === "number") {
+            value = [value];
+        }
+        value = value.map((v) => Math.min(Math.max(v, range[0]), range[1]));
+        if (value.length === 1)
+            return value[0];
+        else
+            return value;
     },
-    linearPartition: function (min, max, steps, includeEnd = true) {
-        const delta = (max - min) / (steps + (includeEnd ? -1 : 0));
+    linearPartition: function (range, steps, includeEnd = true) {
+        const delta = (range[1] - range[0]) / (steps + (includeEnd ? -1 : 0));
         const series = [];
         for (let i = 0; i <= steps - 1; i++) {
-            series.push(min + i * delta);
+            series.push(range[0] + i * delta);
         }
         return series;
     },
-    ratioInInterval: function (min, max, ratio) {
-        return min + (max - min) * ratio;
-    },
-    distance2d: function (v1, v2) {
-        return Math.pow(Math.pow(v1[0] - v2[0], 2) + Math.pow(v1[1] - v2[1], 2), 0.5);
-    },
-    interpolate: function (range, p) {
-        return range[0] * (1 - p) + range[1] * p;
+    ratioInInterval: function (range, ratio) {
+        return range[0] + (range[1] - range[0]) * ratio;
     },
     /**
      * Performs a linear interpolation between two vectors element-wise, using fVector to control element interpolations
-     * @param {number | number[]} startVector
-     * @param {number | number[]} endVector
-     * @param {number | number[]} fVector
-     * @returns {number[]} Interpolated vector
+     * @param startVector
+     * @param endVector
+     * @param fVector
+     * @returns Interpolated vector
      */
-    vectorInterpolate: function (startVector, endVector, fVector) {
-        [startVector, endVector, fVector] = math.matchVectors(startVector, endVector, fVector);
-        const interpolation = Array(startVector.length);
-        for (let i = 0; i < startVector.length; i++) {
-            interpolation[i] = startVector[i] * (1 - fVector[i]) + endVector[i] * fVector[i];
+    interpolate: function (startVector, endVector, fVector) {
+        const [_startVector, _endVector, _fVector] = math.matchVectors(startVector, endVector, fVector);
+        const interpolation = Array(_startVector.length);
+        for (let i = 0; i < _startVector.length; i++) {
+            interpolation[i] = _startVector[i] * (1 - _fVector[i]) + _endVector[i] * _fVector[i];
         }
-        return interpolation;
+        if (_startVector.length === 1) {
+            return interpolation[0];
+        }
+        else
+            return interpolation;
     },
     /**
      * Assures that all vectors are of the same length
@@ -61,38 +72,45 @@ export const math = {
      * math.vectorFill = number: fills shorter vectors with a constant
      * math.vectorFill = "repeat": fills shorter vectors with the last number of the vector
      * math.vectorFill = "cycle": fills shorter vectors with repetitions of itself
-     * @param  {...number[] | number} vectors
-     * @returns {number[][]} - An array of number arrays with matching length
+     * @param vectors
+     * @returns An array of Vectors with matching length
      */
     matchVectors: function (...vectors) {
-        vectors = vectors.map((v) => (typeof v === "number" ? [v] : v));
-        const maxLength = Math.max(...vectors.map((v) => v.length));
+        const allVectors = vectors.map((v) => (Array.isArray(v) ? v : [v]));
+        const maxLength = Math.max(...allVectors.map((v) => v.length));
         if (typeof math.vectorFill === "number") {
-            vectors.forEach((v) => {
-                while (v.length < maxLength) v.push(math.vectorFill);
-            });
-        } else if (math.vectorFill === "repeat") {
-            vectors.forEach((v) => {
-                const lastValue = v.at(-1);
-                while (v.length < maxLength) v.push(lastValue);
-            });
-        } else if (math.vectorFill === "cycle") {
-            vectors.forEach((v) => {
-                const currentLength = v.length;
-                let j = 0;
-                while (v.length < maxLength) {
-                    v.push(v[j % currentLength]);
-                    j++;
-                }
+            const fillValue = math.vectorFill;
+            allVectors.forEach((v) => {
+                while (v.length < maxLength)
+                    v.push(fillValue);
             });
         }
-        return vectors;
+        else if (typeof math.vectorFill === "string") {
+            if (math.vectorFill === "repeat") {
+                allVectors.forEach((v) => {
+                    const lastValue = v.at(-1);
+                    while (v.length < maxLength)
+                        v.push(lastValue);
+                });
+            }
+            else if (math.vectorFill === "cycle") {
+                allVectors.forEach((v) => {
+                    const currentLength = v.length;
+                    let j = 0;
+                    while (v.length < maxLength) {
+                        v.push(v[j % currentLength]);
+                        j++;
+                    }
+                });
+            }
+        }
+        return allVectors;
     },
     /**
      * Calculates the distance between two points in n-dimensional space
-     * @param {number | number[]} p1
-     * @param {number | number[]} p2
-     * @returns {number} Distance between the points
+     * @param p1
+     * @param p2
+     * @returns Distance between the points
      */
     distance: function (p1, p2) {
         [p1, p2] = math.matchVectors(p1, p2);
@@ -104,7 +122,7 @@ export const math = {
     },
     /**
      * Calculates the magnitude of an n-dimensional array
-     * @param {number[]} vector
+     * @param vector
      * @returns The magnitude of the vector
      */
     magnitude: function (vector) {
@@ -113,75 +131,76 @@ export const math = {
     },
     /**
      * Normalizes an n-dimensional vector to have a magnitude of 1, preserving the direction
-     * @param {number[]} vector
-     * @returns {number[] | undefined} Normalized vector or undefined if vector is 0
+     * @param vector
+     * @returns Normalized vector, +1/-1 if vector is number, or undefined if vector magnitude is 0
      */
     normalize: function (vector) {
-        if (typeof vector === "number") return Math.abs(vector) / vector;
-        else if (Array.isArray(vector)) {
+        if (typeof vector === "number") {
+            return Math.abs(vector) / vector;
+        }
+        else {
             const mag = math.magnitude(vector);
-            if (mag === 0) return undefined;
-            return vector.map((x) => x / mag);
-        } else throw new Error("math.normalize: vector must be either a number or a number array");
+            return mag === 0 ? NaN : vector.map((x) => x / mag);
+        }
     },
     /**
      * Adds any number of vectors element-wise
-     * @param  {...number[]} vectors Term vectors
-     * @returns {number[]} Sum vector
+     * @param vectors Term vectors
+     * @returns Sum vector
      */
     add: function (...vectors) {
-        if (vectors.length === 1) return vectors[0];
-        vectors = math.matchVectors(...vectors);
+        if (vectors.length === 1)
+            return vectors[0];
+        const allVectors = math.matchVectors(...vectors);
         const result = [];
-        for (let i = 0; i < vectors[0].length; i++) {
-            result.push(vectors.map((v) => v[i]).reduce((p, c) => p + c, 0));
+        for (let i = 0; i < allVectors[0].length; i++) {
+            result.push(allVectors.map((v) => v[i]).reduce((p, c) => p + c, 0));
         }
         return result;
     },
     /**
      * Multiplies any number of vectors element-wise
-     * @param  {...number[]} vectors Factor vectors
-     * @returns {number[]} Product vector
+     * @param vectors Factor vectors
+     * @returns Product vector
      */
     multiply: function (...vectors) {
-        if (vectors.length === 1) return vectors[0];
-        vectors = math.matchVectors(...vectors);
+        if (vectors.length === 1)
+            return vectors[0];
+        const allVectors = math.matchVectors(...vectors);
         const result = [];
-        for (let i = 0; i < vectors[0].length; i++) {
-            result.push(vectors.map((v) => v[i]).reduce((p, c) => p * c, 1));
+        for (let i = 0; i < allVectors[0].length; i++) {
+            result.push(allVectors.map((v) => v[i]).reduce((p, c) => p * c, 1));
         }
         return result;
     },
     /**
      * Subtracts all vectors from the first vector element-wise
-     * @param  {...number[]} vectors Minuend vector, ...subtrahend vectors
+     * @param  {...number[]} vectors range[0]uend vector, ...subtrahend vectors
      * @returns {number[]} Difference vector
      */
     subtract: function (...vectors) {
-        if (vectors.length === 1) return vectors[0];
-        vectors = math.matchVectors(...vectors);
+        if (vectors.length === 1)
+            return vectors[0];
+        const allVectors = math.matchVectors(...vectors);
         const result = [];
-        for (let i = 0; i < vectors[0].length; i++) {
-            result.push(
-                vectors
-                    .slice(1)
-                    .map((v) => v[i])
-                    .reduce((p, c) => p - c, vectors[0][i])
-            );
+        for (let i = 0; i < allVectors[0].length; i++) {
+            result.push(allVectors
+                .slice(1)
+                .map((v) => v[i])
+                .reduce((p, c) => p - c, allVectors[0][i]));
         }
         return result;
     },
     divide: function (...vectors) {
-        if (vectors.length === 1) return vectors[0];
-        vectors = math.matchVectors(...vectors);
+        if (vectors.length === 1)
+            return vectors[0];
+        const allVectors = math.matchVectors(...vectors);
         const result = [];
-        for (let i = 0; i < vectors[0].length; i++) {
-            result.push(
-                vectors
-                    .slice(1)
-                    .map((v) => v[i])
-                    .reduce((p, c) => p / c, vectors[0][i])
-            );
+        for (let i = 0; i < allVectors[0].length; i++) {
+            result.push(allVectors
+                .slice(1)
+                .map((v) => v[i])
+                .reduce((p, c) => p / c, allVectors[0][i]));
         }
         return result;
     },

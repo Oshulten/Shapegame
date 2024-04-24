@@ -1,0 +1,78 @@
+import { Color } from "./color.js";
+import { Camera } from "./camera.js";
+import { math, type Vector } from "./math.js";
+import { Coords, type Coord2DList, type Coord2D } from "./geometry.js";
+import * as Matter from './matter.js';
+
+console.log(Matter);
+
+interface ShapeJSON {
+    vertices: Coord2DList;
+    fillColor: Vector;
+    isStatic: boolean;
+}
+
+export class Shape {
+    private layer: any;
+    public body: Matter.Body;
+    public fillColor: Color;
+    public hover: boolean = false;
+
+    static bodyFromWorldCoords(coords: Coord2DList, options: any = {}): any {
+        const vs = coords.map((coord) => {
+            return { x: coord[0], y: coord[1] };
+        });
+        //Commented out because the method sometimes shuffles the order of the vertices
+        //This will cause point-in-body checking to fail if the shape is not constructed clockwise!
+        //Matter.Vertices.clockwiseSort(vs);
+        const body = Matter.Body.create(options);
+        Matter.Body.setVertices(body, vs);
+        Matter.Body.setPosition(body, Matter.Vertices.centre(vs));
+        body.restitution = 0.5;
+        return body;
+    }
+    
+    static serialize(shape: Shape): any {
+        return {
+            vertices: shape.body.vertices.map((v: any) => [v.x, v.y]),
+            fillColor: shape.fillColor.hsla,
+            isStatic: shape.body.isStatic,
+        };
+    }
+    static deserialize(inLayer: any, jsonObject: ShapeJSON): Shape {
+        return new Shape(inLayer, jsonObject.vertices, {
+            isStatic: jsonObject.isStatic,
+            fillColor: new Color(jsonObject.fillColor[0], jsonObject.fillColor[1], jsonObject.fillColor[2], jsonObject.fillColor[3])
+        });
+    }
+    constructor(layer: any, coords: Coord2DList, options: any = {}) {
+        this.layer = layer;
+        this.body = Shape.bodyFromWorldCoords(coords, options);
+        this.fillColor = options.fillColor || new Color([0, 360], 50, 50, 1);
+        Matter.Composite.add(this.layer.engine.world, this.body);
+    }
+    maxDim(): number {
+        return Math.max(this.body.bounds.max.x - this.body.bounds.min.x, this.body.bounds.max.y - this.body.bounds.min.y);
+    }
+    render(options: any = {}) {
+        const ctx = this.layer.ctx;
+        ctx.beginPath();
+        this.body.vertices.forEach((v: any) => {
+            ctx.lineTo(v.x, v.y);
+        });
+        ctx.closePath();
+        if (options.fill)
+            ctx.fill();
+        if (options.stroke)
+            ctx.stroke();
+    }
+    get position(): Coord2D {
+        return [
+            this.body.position.x,
+            this.body.position.y
+        ];
+    }
+    set position(position: Coord2D) {
+        Matter.Body.setPosition(this.body, { x: position[0], y: position[1] });
+    }
+}

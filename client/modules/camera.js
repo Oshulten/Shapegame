@@ -17,9 +17,10 @@ export class Camera {
             bottom: 0,
             width: 0,
             height: 0,
-            scale: [settings.scaleX || 1.0, settings.scaleY || 1.0]
+            scale: [settings.scaleX || 1.0, settings.scaleY || 1.0],
         };
         this.drawCursor = true;
+        console.log("camera context", this);
         this.addListeners();
         this.updateViewport();
     }
@@ -31,7 +32,7 @@ export class Camera {
             bottom: this.ctx.canvas.height,
             width: this.ctx.canvas.width,
             height: this.ctx.canvas.height,
-            scale: [1, 1]
+            scale: [1, 1],
         };
     }
     getViewportAtDepth(depth) {
@@ -63,8 +64,8 @@ export class Camera {
         this.aspectRatio = this.ctx.canvas.width / this.ctx.canvas.height;
         this.viewport.width = this.distance * Math.tan(this.fieldOfView);
         this.viewport.height = this.viewport.width / this.aspectRatio;
-        this.viewport.left = this.lookAt[0] - (this.viewport.width / 2.0);
-        this.viewport.top = this.lookAt[1] - (this.viewport.height / 2.0);
+        this.viewport.left = this.lookAt[0] - this.viewport.width / 2.0;
+        this.viewport.top = this.lookAt[1] - this.viewport.height / 2.0;
         this.viewport.right = this.viewport.left + this.viewport.width;
         this.viewport.bottom = this.viewport.top + this.viewport.height;
         this.viewport.scale[0] = this.ctx.canvas.width / this.viewport.width;
@@ -102,8 +103,8 @@ export class Camera {
         this.distance += deltaDepth;
         this.updateViewport();
         const transformedCoords = [
-            (coords[0] / this.viewport.scale[0]) + this.viewport.left,
-            (coords[1] / this.viewport.scale[1]) + this.viewport.top
+            coords[0] / this.viewport.scale[0] + this.viewport.left,
+            coords[1] / this.viewport.scale[1] + this.viewport.top
         ];
         this.distance -= deltaDepth;
         this.updateViewport();
@@ -112,27 +113,18 @@ export class Camera {
     coordsToScreen(coords, deltaDepth = 0) {
         this.distance += deltaDepth;
         this.updateViewport();
-        const transformedCoords = [
-            (coords[0] - this.viewport.left) * (this.viewport.scale[0]),
-            (coords[1] - this.viewport.top) * (this.viewport.scale[1])
-        ];
+        const transformedCoords = [(coords[0] - this.viewport.left) * this.viewport.scale[0], (coords[1] - this.viewport.top) * this.viewport.scale[1]];
         this.distance -= deltaDepth;
         this.updateViewport();
         return transformedCoords;
     }
     dimsToWorld(dims) {
-        return [
-            dims[0] / this.viewport.scale[0],
-            dims[1] / this.viewport.scale[1]
-        ];
+        return [dims[0] / this.viewport.scale[0], dims[1] / this.viewport.scale[1]];
     }
     dimsToScreen(dims, deltaDepth = 0) {
         this.distance += deltaDepth;
         this.updateViewport();
-        const screenDim = [
-            dims[0] * this.viewport.scale[0],
-            dims[1] * this.viewport.scale[1]
-        ];
+        const screenDim = [dims[0] * this.viewport.scale[0], dims[1] * this.viewport.scale[1]];
         this.distance -= deltaDepth;
         this.updateViewport();
         return screenDim;
@@ -140,15 +132,17 @@ export class Camera {
     dimToWorld(dim, x = true) {
         return dim * (x ? this.viewport.scale[0] : this.viewport.scale[1]);
     }
-    dimToScreen(dim, x = true) {
-        return dim / (x ? this.viewport.scale[0] : this.viewport.scale[1]);
+    dimToScreen(dim, deltaDepth = 0, x = true) {
+        this.distance += deltaDepth;
+        this.updateViewport();
+        const screenDim = dim / (x ? this.viewport.scale[0] : this.viewport.scale[1]);
+        this.distance -= deltaDepth;
+        this.updateViewport();
+        return screenDim;
     }
-    updateCursor(event = undefined) {
+    updateCursor(event) {
         if (event) {
-            this.screenCursor = [
-                event.clientX - this.ctx.canvas.offsetLeft,
-                event.clientY - this.ctx.canvas.offsetTop
-            ];
+            this.screenCursor = [event.clientX - this.ctx.canvas.offsetLeft, event.clientY - this.ctx.canvas.offsetTop];
         }
         this.realCursor = this.coordsToWorld(this.screenCursor);
     }
@@ -156,30 +150,30 @@ export class Camera {
         return this.coordsToWorld(this.screenCursor, depth);
     }
     addListeners() {
-        this.ctx.canvas.addEventListener("mousedown", event => {
+        this.ctx.canvas.addEventListener("mousedown", (event) => {
             this.updateCursor(event);
             if (event.button === 2) {
                 //this.moveTo(this.realCursor, event);
                 this.grabPan = {
                     startPosition: [...this.realCursor],
-                    controller: new AbortController
+                    controller: new AbortController(),
                 };
-                this.ctx.canvas.addEventListener("mousemove", event => {
-                    const delta = [
-                        this.grabPan.startPosition[0] - this.realCursor[0],
-                        this.grabPan.startPosition[1] - this.realCursor[1]
-                    ];
-                    this.pan(delta);
+                this.ctx.canvas.addEventListener("mousemove", (event) => {
+                    var _a;
+                    if ((_a = this.grabPan) === null || _a === void 0 ? void 0 : _a.startPosition) {
+                        const delta = [this.grabPan.startPosition[0] - this.realCursor[0], this.grabPan.startPosition[1] - this.realCursor[1]];
+                        this.pan(delta);
+                    }
                 }, { signal: this.grabPan.controller.signal });
-                this.ctx.canvas.addEventListener("mouseup", event => {
-                    if (event.button === 2) {
+                this.ctx.canvas.addEventListener("mouseup", (event) => {
+                    if (event.button === 2 && this.grabPan) {
                         this.grabPan.controller.abort();
                     }
                 }, { signal: this.grabPan.controller.signal });
             }
         });
         //update cursor
-        this.ctx.canvas.addEventListener("mousemove", event => {
+        this.ctx.canvas.addEventListener("mousemove", (event) => {
             this.updateCursor(event);
         });
         window.addEventListener("wheel", (event) => {
@@ -191,5 +185,3 @@ export class Camera {
         });
     }
 }
-;
-//# sourceMappingURL=camera.js.map

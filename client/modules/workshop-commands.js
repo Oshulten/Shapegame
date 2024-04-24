@@ -3,6 +3,14 @@ import { math } from "./math.js";
 import { Color } from "./color.js";
 import { Coords } from "./geometry.js";
 
+/** 
+ * @typedef {Object} WorkshopCommand
+ * @property {string[]} aliases
+ * @property {({WorkshopCommand})=>Promise<void>} method
+ * @property {()=>void} previewMethod
+ * @property {boolean} repeatCommand
+ */
+
 export const WorkshopCommands = [
     {
         aliases: ["rectangle", "rect", "r"],
@@ -17,7 +25,7 @@ export const WorkshopCommands = [
         repeatCommand: true,
     },
     {
-        aliases: ["polyshape", "poly", "p"],
+        aliases: ["polyshape", "poly", "pl"],
         method: commandPolyshape,
         previewMethod: previewPolyshape,
         repeatCommand: true,
@@ -68,7 +76,7 @@ function previewPolyshape() {
         this.ctx.stroke();
         //draw close circle
         const closeThreshold = this.camera.dimToScreen(this.settings.closePolylineThreshold, this.activeLayer.depth);
-        if (c.data.points.length > 2 && math.distance2d(coords[0], coords.at(-1)) <= this.settings.closePolylineThreshold) {
+        if (c.data.points.length > 2 && math.distance(coords[0], coords.at(-1)) <= this.settings.closePolylineThreshold) {
             this.ctx.beginPath();
             this.ctx.arc(...coords[0], this.settings.closePolylineThreshold, 0, 2 * Math.PI);
             this.ctx.closePath();
@@ -91,7 +99,7 @@ function commandCircle(command) {
         };
         try {
             let pnts = await this.getPointsByCursor(2);
-            const radius = math.distance2d(...pnts);
+            const radius = math.distance(...pnts);
             const coords = Coords.circle(pnts[0], radius, 48);
             this.activeLayer.addShape(coords, {
                 isStatic: this.settings.createStaticShapes,
@@ -110,7 +118,7 @@ function previewCircle() {
         if (this.activeLayer.space === "world") {
             this.camera.apply(this.activeLayer.depth);
         }
-        const radius = math.distance2d(c.data.points[0], c.data.cursorPoint);
+        const radius = math.distance(c.data.points[0], c.data.cursorPoint);
         const coords = Coords.circle(c.data.points[0], radius, 48);
         this.ctx.beginPath();
         coords.forEach((c) => {
@@ -138,7 +146,7 @@ function commandRectangle(command) {
         try {
             let pnts = await this.getPointsByCursor(2);
             this.activeLayer.addShape(Coords.cornerBox(...pnts), {
-                isStatic: this.createStaticShapes,
+                isStatic: this.settings.createStaticShapes,
             });
             this.activeCommand = undefined;
             resolve();

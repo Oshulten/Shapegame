@@ -1,6 +1,5 @@
 import { math } from "./math.js";
 import { Path } from "./geometry.js";
-
 export const TimeFunctions = {
     linear: function (p) {
         return p;
@@ -12,10 +11,24 @@ export const TimeFunctions = {
         return 1 - Math.cos(Math.PI * p * 0.5);
     },
 };
-
+export const DynamicFunctions = {
+    attractionFollow: function (g = 50, rPower = 1, minDist = 50, friction = 0.99) {
+        return function (animation, dt) {
+            let source = animation.sourceObject[animation.sourceKey];
+            let target = animation.targetObject[animation.targetKey];
+            let dist = math.distance(source, target);
+            let dir = math.normalize(math.subtract(source, target));
+            let force = g / Math.pow(dist, rPower);
+            if (dist < minDist) {
+                force = 0;
+            }
+            animation.velocity = math.add(animation.velocity, math.multiply(dir, force * dt));
+            animation.velocity = math.multiply(animation.velocity, friction);
+            animation.sourceObject[animation.sourceKey] = math.add(source, math.multiply(animation.velocity, dt));
+        };
+    },
+};
 export class AnimationManager {
-    static animations = [];
-
     static start(animation) {
         this.animations.push(animation);
         return this.animations.at(-1);
@@ -23,7 +36,6 @@ export class AnimationManager {
     static abort(animation) {
         this.animations = this.animations.filter((obj) => obj !== animation);
     }
-
     static update(dt) {
         let finishedAnimations = [];
         this.animations.forEach((anim) => {
@@ -36,19 +48,19 @@ export class AnimationManager {
         });
     }
 }
-
+AnimationManager.animations = [];
 export class CallbackAnimation {
     /**
      * @description An animation based on a callback function
-     * @param {number | number[]} startValues - initial values
-     * @param {number | number[]} endValues - terminal values
-     * @param {number} duration - duration of animation in seconds
-     * @param {function} callback - a function that will be called after each update, with the current value of the animation property
-     * @param {function} timeFunction - CallbackAnimation.linear, .easeInEaseOut, .easeIn,
-     * @param {number} iterations - default: 1; domain(1, infinity)
-     * @param {string} repeatMode - "loop" | "ping-pong"
+     * @param startValues - initial values
+     * @param endValues - terminal values
+     * @param duration - duration of animation in seconds
+     * @param callback - a function that will be called after each update, with the current value of the animation property
+     * @param timeFunction - TimeFunctions.linear, .easeInEaseOut, .easeIn,
+     * @param iterations - default: 1; domain(1, infinity)
+     * @param repeatMode - "loop" | "ping-pong"
      */
-    constructor(startValues, endValues, duration, callback, timeFunction = AnimationManager.easeInEaseOut, iterations = 1, repeatMode = "loop") {
+    constructor(startValues, endValues, duration, callback, timeFunction = TimeFunctions.easeInEaseOut, iterations = 1, repeatMode = "loop") {
         this.startValues = typeof startValues === "number" ? [startValues] : [...startValues];
         this.endValues = typeof endValues === "number" ? [endValues] : [...endValues];
         this.currentValues = typeof startValues === "number" ? [startValues] : [...startValues];
@@ -64,64 +76,37 @@ export class CallbackAnimation {
         let t = this.time / this.duration;
         if (this.time >= this.duration * this.iterations && this.iterations !== -1) {
             return false;
-        } else {
+        }
+        else {
             if (this.repeatMode === "loop") {
                 t %= 1;
-            } else if (this.repeatMode === "ping-pong") {
+            }
+            else if (this.repeatMode === "ping-pong") {
                 if (t % 2 >= 1 && t % 2 <= 2) {
                     t = 1 - (t - 1);
                 }
             }
             let p = this.timeFunction(t);
-            this.currentValues = this.currentValues.map((value, i) => math.interpolate([this.startValues[i], this.endValues[i]], p));
+            this.currentValues = math.interpolate(this.startValues, this.endValues, p);
             this.callback(this.currentValues.length > 1 ? this.currentValues : this.currentValues[0]);
         }
         return true;
     }
 }
-
 export class PathAnimation {
     constructor(path, domain, duration, timeFunction, callback, iterations = 1, repeatMode = "loop") {
         this.path = path;
         this.domain = domain;
         this.callback = callback;
-        this.linearAnimation = new CallbackAnimation(
-            domain[0], domain[1], duration, 
-            (v) => {
-                this.callback(Path.evaluatePath(this.path, v));
-            }, 
-            timeFunction, iterations, repeatMode);
+        this.linearAnimation = new CallbackAnimation(domain[0], domain[1], duration, (v) => {
+            this.callback(Path.evaluatePath(this.path, v));
+        }, timeFunction, iterations, repeatMode);
     }
-
     update(dt) {
         this.linearAnimation.update(dt);
     }
 }
-
 export class DynamicAnimation {
-    /**
-     * Constructs a function that binds a source property to a target property based on value distance.
-     * @param {number} g
-     * @param {number} rPower
-     * @returns {function} An animation method used together with new DynamicAnimation()
-     * @example
-     * const sourceObject = { x: 0 };
-     * const targetObject = { x: 10 };
-     * const dynamicAnimation = new DynamicAnimation(sourceObject, "x", targetObject, "x", DynamicAnimation.attractionFollow(1, 2));
-     * dynamicAnimation.update(1);
-     */
-    static attractionFollow(g = 50, rPower = 1, minDist = 50, friction = 0.99) {
-        return function (p1, p2, currentVelocity) {
-            const distance = Math.max(math.distance(p1, p2), minDist);
-            const force = g / distance ** rPower;
-            const direction = math.normalize(math.subtract(p2, p1));
-            const forceVector = math.multiply(direction, force);
-            let v = math.add(currentVelocity, forceVector);
-            v = math.multiply(v, friction);
-            return v;
-        };
-    }
-
     /**
      * Constructs a dynamic animation, which runs perpetually and binds two object properties together
      * @param {object} sourceObject
@@ -138,15 +123,11 @@ export class DynamicAnimation {
         this.targetKey = targetKey;
         this.animationMethod = animationMethod;
     }
-
     /**
      * Updates the properties of the source object.
      * @param {number} dt - time in seconds since last update
      */
     update(dt) {
-        this.velocity = this.animationMethod(this.sourceObject[this.sourceKey], this.targetObject[this.targetKey], this.velocity);
-        this.sourceObject[this.sourceKey] = math.add(this.sourceObject[this.sourceKey], this.velocity);
-        // this.velocity += this.animationMethod(this.sourceObject[this.sourceKey], this.targetObject[this.targetKey]);
-        // this.sourceObject[this.sourceKey] += this.velocity;
+        this.animationMethod(this, dt);
     }
 }

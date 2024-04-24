@@ -10,6 +10,17 @@
   "license": "ISC",
   "description": "",
   "nodemonConfig": {
-    "ignore": ["data/**", "./client/**"]
+    "ignore": [
+      "data/**",
+      "./client/**"
+    ]
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@types/matter-js": "^0.19.6",
+    "sass": "^1.75.0"
   }
 }

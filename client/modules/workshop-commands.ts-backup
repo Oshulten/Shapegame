@@ -1,0 +1,198 @@
+import { Shape } from "./shape.ts-backup";
+import { math, type Vector } from "./math.js";
+import { Color } from "./color.js";
+import { World } from "./world.ts-backup";
+import { Coord2D, Coord2DList, Coords } from "./geometry.js";
+import { Workshop } from "./workshop.ts-backup";
+
+export interface WorkshopCommand {
+    aliases: string[];
+    method: (this: Workshop, command: WorkshopCommand) => Promise<void>;
+    previewMethod: (this: Workshop) => void;
+    repeatCommand: boolean;
+}
+
+export const WorkshopCommands: WorkshopCommand[] = [
+    {
+        aliases: ["rectangle", "rect", "r"],
+        method: commandRectangle,
+        previewMethod: previewRectangle,
+        repeatCommand: true,
+    },
+    {
+        aliases: ["circle", "c"],
+        method: commandCircle,
+        previewMethod: previewCircle,
+        repeatCommand: true,
+    },
+    {
+        aliases: ["polyshape", "poly", "p"],
+        method: commandPolyshape,
+        previewMethod: previewPolyshape,
+        repeatCommand: true,
+    },
+];
+
+/** POLYSHAPE */
+function commandPolyshape(this: Workshop, command: WorkshopCommand): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+        console.log("Polyshape: select at least three coordinates or press Esc to cancel...");
+        this.activeCommand = {
+            command: command,
+            data: {
+                points: [],
+                cursorPoint: undefined,
+            },
+        };
+        try {
+            let pnts = (await this.getPointsByCursor("close")) as Coord2DList;
+            console.log(pnts);
+            if (this.activeLayer) {
+                const shape = this.activeLayer.addShape(pnts, {
+                    isStatic: this.settings.createStaticShapes,
+                });
+                console.log(shape.body.vertices);
+            }
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+        this.activeCommand = undefined;
+        resolve();
+    });
+}
+function previewPolyshape(this: Workshop) {
+    const c = this.activeCommand;
+    if (this.activeLayer === undefined) {
+        throw new Error("No active layer");
+    } else if (c && c.data.points.length > 0 && c.data.cursorPoint) {
+        if (this.activeLayer.space === "world") {
+            this.camera.apply(this.activeLayer.depth);
+        }
+        const coords: Coord2DList = [...c.data.points, c.data.cursorPoint];
+        this.ctx.beginPath();
+        coords.forEach((c) => {
+            this.ctx.lineTo(...c);
+        });
+        this.ctx.closePath();
+        this.ctx.lineWidth = this.camera.dimToScreen(2);
+        this.ctx.setLineDash([15, 5]);
+        this.ctx.strokeStyle = "white";
+        this.ctx.stroke();
+        //draw close circle
+        const closeThreshold = this.camera.dimToScreen(this.settings.closePolylineThreshold, this.activeLayer.depth);
+        if (c.data.points.length > 2) {
+            if (math.distance(coords[0], c.data.cursorPoint) <= this.settings.closePolylineThreshold) {
+                this.ctx.beginPath();
+                this.ctx.arc(...coords[0], this.settings.closePolylineThreshold, 0, 2 * Math.PI);
+                this.ctx.closePath();
+                this.ctx.lineWidth = this.camera.dimToScreen(1);
+                this.ctx.stroke();
+            }
+        }
+        this.camera.restore();
+    }
+}
+/** CIRCLE */
+function commandCircle(this: Workshop, command: WorkshopCommand): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+        console.log("Circle: select two coordinates or press Esc to cancel...");
+        this.activeCommand = {
+            command: command,
+            data: {
+                points: [],
+                cursorPoint: undefined,
+            },
+        };
+        try {
+            let pnts = (await this.getPointsByCursor(2)) as Coord2DList;
+            const radius = math.distance(pnts[0], pnts[1]);
+            const coords = Coords.circle(pnts[0], radius, 48);
+            if (this.activeLayer) {
+                this.activeLayer.addShape(coords, {
+                    isStatic: this.settings.createStaticShapes,
+                });
+            }
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+        this.activeCommand = undefined;
+        resolve();
+    });
+}
+function previewCircle(this: Workshop) {
+    const c = this.activeCommand;
+    if (this.activeLayer === undefined) {
+        throw new Error("No active layer");
+    } else if (c === undefined) {
+        throw new Error("No active command");
+    } else if (c.data.points.length > 0 && c.data.cursorPoint) {
+        if (this.activeLayer.space === "world") {
+            this.camera.apply(this.activeLayer.depth);
+        }
+        const radius = math.distance(c.data.points[0], c.data.cursorPoint);
+        const coords = Coords.circle(c.data.points[0], radius, 48);
+        this.ctx.beginPath();
+        coords.forEach((c) => {
+            this.ctx.lineTo(...c);
+        });
+        this.ctx.closePath();
+        this.ctx.lineWidth = this.camera.dimToScreen(2);
+        this.ctx.setLineDash([15, 5]);
+        this.ctx.strokeStyle = "white";
+        this.ctx.stroke();
+        this.camera.restore();
+    }
+}
+/** RECTANGLE */
+function commandRectangle(this: Workshop, command: WorkshopCommand): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+        console.log("Rectangle: select two coordinates or press Esc to cancel...");
+        this.activeCommand = {
+            command: command,
+            data: {
+                points: [],
+                cursorPoint: undefined,
+            },
+        };
+        try {
+            let pnts = (await this.getPointsByCursor(2)) as Coord2DList;
+            if (this.activeLayer) {
+                this.activeLayer.addShape(Coords.cornerBox(pnts[0], pnts[1]), {
+                    isStatic: this.createStaticShapes,
+                });
+            }
+            // this.activeCommand = undefined;
+            resolve();
+        } catch (error) {
+            console.log(error);
+            this.activeCommand = undefined;
+            reject(error);
+        }
+    });
+}
+function previewRectangle(this: Workshop) {
+    //render a preview of rectangle command
+    const c = this.activeCommand;
+    if (this.activeLayer === undefined) {
+        throw new Error("No active layer");
+    } else if (c === undefined) {
+        throw new Error("No active command");
+    } else if (c.data.points.length > 0 && c.data.cursorPoint) {
+        if (this.activeLayer.space === "world") {
+            this.camera.apply(this.activeLayer.depth);
+        }
+        const coords = Coords.cornerBox(c.data.points[0], c.data.cursorPoint);
+        this.ctx.beginPath();
+        coords.forEach((c) => {
+            this.ctx.lineTo(...c);
+        });
+        this.ctx.closePath();
+        this.ctx.lineWidth = this.camera.dimToScreen(2);
+        this.ctx.setLineDash([15, 5]);
+        this.ctx.strokeStyle = "white";
+        this.ctx.stroke();
+        this.camera.restore();
+    }
+}

@@ -1,0 +1,145 @@
+import { math, type Vector } from "./math.js";
+import { Color } from "./color.js";
+import { Shape } from "./shape.ts-backup";
+import { Camera } from "./camera.js";
+import { Coord2DList, type Coord2D } from "./geometry.js"; 
+import * as Matter from './matter.js';
+
+export type RenderSpace = "world" | "foreground" | "background";
+export interface LayerJSON {
+    space: RenderSpace;
+    depth: number;
+    id: number;
+    modulationColor: Vector;
+    modulationFactor: Vector;
+    shapes: any[];
+}
+
+/** A container object that manages a set of Shapes and is a child of a World. */
+export class Layer {
+    private ctx: CanvasRenderingContext2D;
+    private camera: Camera;
+    private engine: Matter.Engine;
+    public space: RenderSpace;
+    public depth: number;
+    private id: number;
+    private modulationColor: Color;
+    private modulationFactor: Vector;
+    private shapes: Shape[];
+    public runPhysics: boolean;
+    private cursor: Coord2D | undefined;
+    private firstHoverShape: Shape | undefined;
+
+    static serialize(layer: Layer): LayerJSON {
+        return {
+            space: layer.space,
+            depth: layer.depth,
+            id: layer.id,
+            modulationColor: layer.modulationColor.hsla,
+            modulationFactor: layer.modulationFactor,
+            shapes: layer.shapes.map((shape) => Shape.serialize(shape)),
+        };
+    }
+    static deserialize(inWorld: any, jsonObject: LayerJSON): Layer {
+        const layer = new Layer(inWorld.ctx, inWorld.camera, jsonObject.space, jsonObject.depth);
+        layer.id = jsonObject.id;
+        layer.modulationFactor = jsonObject.modulationFactor;
+        console.log(jsonObject);
+        layer.modulationColor = new Color(jsonObject.modulationColor[0], jsonObject.modulationColor[1], jsonObject.modulationColor[2], jsonObject.modulationColor[3]);
+        for (let shape of jsonObject.shapes) {
+            layer.shapes.push(Shape.deserialize(layer, shape));
+        }
+        return layer;
+    }
+    /**
+     * @param {CanvasRenderingContext2D} context - A canvas context to render into
+     * @param {Camera} camera - A camera object
+     * @param {RenderSpace} space - Types: "world", "foreground", "background"
+     * @param {number} depth - Distance of layer from camera
+     */
+    constructor(context: CanvasRenderingContext2D, camera: Camera, space: RenderSpace = "world", depth: number = 0) {
+        this.ctx = context;
+        this.camera = camera;
+        this.engine = Matter.Engine.create();
+        this.space = space;
+        this.depth = depth;
+        this.id = math.uniformInt([0, Math.pow(10, 9)]) as number;
+        this.modulationColor = new Color(0, 0, 50, 0);
+        this.modulationFactor = [0, 0, 0, 0];
+        this.shapes = [];
+        this.runPhysics = true;
+        window.addEventListener("mousemove", (event) => {
+            this.updateCursor(event);
+        });
+    }
+    addShape(coords: Coord2DList, options: any = {}): Shape {
+        const shape = new Shape(this, coords, options);
+        this.shapes.push(shape);
+        return shape;
+    }
+    render() {
+        if (this.space === "world") {
+            this.camera.apply(this.depth);
+        }
+        this.shapes.forEach((shape) => {
+            this.ctx.fillStyle = Color.interpolate(shape.fillColor, this.modulationColor, this.modulationFactor).html();
+            this.ctx.strokeStyle = Color.white().html();
+            shape.render({ fill: true, stroke: shape.hover });
+        });
+        if (this.space === "world") {
+            this.camera.restore();
+        }
+    }
+    updateCursor(event: MouseEvent) {
+        const screenCursor: Coord2D = [event.clientX - this.ctx.canvas.offsetLeft, event.clientY - this.ctx.canvas.offsetTop];
+        this.cursor = screenCursor;
+        if (this.space === "world") {
+            this.cursor = this.camera.coordsToWorld(screenCursor, this.depth);
+        }
+    }
+    update(dt: number) {
+        if (this.runPhysics) {
+            Matter.Engine.update(this.engine, dt * 1000);
+        }
+        // this.shapes.forEach((shape) => {
+        //     if (shape instanceof AnimatableShape) {
+        //         shape.updateAnimation(dt);
+        //     }
+        // });
+        // if (this.cursor) {
+        //     //check if mouse hovers over any shape
+        //     const bodies = this.shapes.map((shape) => shape.body);
+        //     const hoverBodies = Matter.Query.point(bodies, {
+        //         x: this.cursor[0],
+        //         y: this.cursor[1],
+        //     });
+        //     hoverBodies.forEach((b) => {
+        //         b.shape.hover = true;
+        //     });
+        //     if (hoverBodies.length > 0) this.firstHoverShape = hoverBodies[0].shape;
+        //     else this.firstHoverShape = undefined;
+        //     bodies
+        //         .filter((n) => !hoverBodies.includes(n))
+        //         .forEach((b) => {
+        //             b.shape.hover = false;
+        //         });
+        // }
+    }
+    deleteShape(shape: Shape) {
+        this.shapes = this.shapes.filter((obj) => obj !== shape);
+    }
+}
+
+/**
+ * An extension of Layer which supports generating new content
+ * as the camera viewport changes.
+ **/
+export class DynamicLayer extends Layer {
+    constructor(context: CanvasRenderingContext2D, camera: Camera, space: RenderSpace = "world", depth = 0) {
+        super(context, camera, space, depth);
+    }
+
+    update(dt: number) {
+        super.update(dt);
+    }
+}

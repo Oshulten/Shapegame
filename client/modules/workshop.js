@@ -7,8 +7,34 @@ import { World } from "./world.js";
 import { WorkshopCommands } from "./workshop-commands.js";
 import { WorkshopDefaultSettings } from "./workshop-settings.js";
 
+/**
+ * @typedef {Object} Grid
+ * @property {number} spacing
+ * @property {Coords2D} offset
+ * @property {boolean} snap
+ * @property {Coords2D} snappedCoordinates
+ */
+
+/**
+ * A workshop is a tool that allows the user to interact with the world and its layers.
+ */
 export class Workshop {
-    constructor(world, activeLayer) {
+    world; /** @property {World} */
+    camera; /** @property {Camera} */
+    ctx; /** @property {CanvasRenderingContext2D} */
+    activeLayer; /** @property {Layer} */
+    settings; /** @property {WorkshopSettings} */
+    commands; /** @property {WorkshopCommand[]} */
+    activeCommand; /** @property {WorkshopCommand} */
+    grid; /** @property {Grid} */
+    focus = false; /** @property {boolean} */
+
+    /**
+     *
+     * @param {World} world World instance that this workshop will interact with
+     * @param {Layer} activeLayer Layer instance that this workshop will interact with
+     */
+    constructor(world, activeLayer = undefined) {
         this.world = world;
         this.camera = world.camera;
         this.ctx = world.ctx;
@@ -20,13 +46,7 @@ export class Workshop {
             command.previewMethod = command.previewMethod.bind(this);
         });
         this.activeCommand = undefined;
-        this.grid = {
-            settings: { ...WorkshopDefaultSettings.gridSettings },
-            spacing: 50,
-            offset: [0, 0],
-            snap: false,
-            snappedCoordinates: [undefined, undefined],
-        };
+        this.grid = { ...WorkshopDefaultSettings.gridSettings };
         this.ctx.canvas.addEventListener("contextmenu", (event) => {
             event.preventDefault();
             if (this.activeLayer?.firstHoverShape) {
@@ -47,13 +67,11 @@ export class Workshop {
     }
     tryCommand(alias) {
         console.log("trying command " + alias);
-        let recognizedAlias = false;
         this.commands.forEach((command) => {
             command.aliases.forEach((a) => {
                 if (alias === a) {
-                    recognizedAlias = true;
-                    command.method
-                        .bind(this)(command)
+                    console.log("recognized alias " + a);
+                    command.method(command)
                         .then(() => {
                             if (command.repeatCommand) {
                                 this.tryCommand(alias);
@@ -66,7 +84,7 @@ export class Workshop {
         });
         return false;
     }
-    
+
     renderPreview() {
         if (this.activeCommand) {
             this.activeCommand.command.previewMethod.bind(this)();
@@ -90,7 +108,7 @@ export class Workshop {
                     while (true) {
                         let p = await this.getPointByCursor();
                         const closeThreshold = this.camera.dimToScreen(this.settings.closePolylineThreshold, this.activeLayer.depth);
-                        if (points.length >= 3 && math.distance2d(points[0], p) <= this.settings.closePolylineThreshold) {
+                        if (points.length >= 3 && math.distance(points[0], p) <= this.settings.closePolylineThreshold) {
                             resolve(points);
                         } else {
                             points.push(p);

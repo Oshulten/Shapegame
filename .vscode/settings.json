@@ -1,4 +1,10 @@
 {
     "appService.defaultWebAppToDeploy": "/subscriptions/ed9b8786-81cd-4319-a881-d63ab5b6762c/resourceGroups/shape-game-ts/providers/Microsoft.Web/sites/shape-game",
-    "appService.deploySubpath": "."
+    "appService.deploySubpath": ".",
+    "cmake.configureOnOpen": false,
+    "files.exclude": {
+        "**/*.js": { "when": "$(basename).ts" },
+        "**/*.js.map": true,
+        "**/*.ts-backup": true,
+    }
 }

@@ -2,26 +2,55 @@ import { math } from "./math.js";
 import { Color } from "./color.js";
 import { Shape } from "./shape.js";
 
+/**
+ * @typedef {Object} LayerJSON
+ * @property {string} space
+ * @property {number} depth
+ * @property {number[]} modulationColor
+ * @property {number[]} modulationFactor
+ * @property {ShapeJSON[]} shapes
+ */
+
+/** @enum {"world", "background", "renderspace"} RenderSpace */
+
 /** A container object that manages a set of Shapes and is a child of a World. */
 export class Layer {
+    ctx; /** {CanvasRenderingContext2D} */
+    camera; /** {Camera} */
+    engine = Matter.Engine.create(); /** {Matter.Engine} */
+    space; /** {RenderSpace} */
+    depth; /** {number} */
+    modulationColor = new Color(0, 0, 50, 0); /** {Color} */
+    modulationFactor = [0, 0, 0, 0]; /** {Vector} */
+    shapes = []; /** {Shape[]} */
+    runPhysics = true;
+    cursor; /** {Coord2D} The position of the screen cursor in */
+    /**
+     * @param {Layer} layer
+     * @returns {LayerJSON}
+     */
     static serialize(layer) {
         return {
             space: layer.space,
             depth: layer.depth,
-            id: layer.id,
             modulationColor: layer.modulationColor.hsla,
             modulationFactor: layer.modulationFactor,
             shapes: layer.shapes.map((shape) => Shape.serialize(shape)),
         };
     }
-    static deserialize(inWorld, jsonObject) {
-        const layer = new Layer(inWorld.ctx, inWorld.camera, jsonObject.space, jsonObject.depth);
-        layer.id = jsonObject.id;
+    /**
+     *
+     * @param {CanvasRenderingContext2D} context
+     * @param {Camera} camera
+     * @param {LayerJSON} jsonObject
+     * @returns {Layer}
+     */
+    static deserialize(context, camera, jsonObject) {
+        const layer = new Layer(context, camera, jsonObject.space, jsonObject.depth);
         layer.modulationFactor = jsonObject.modulationFactor;
-        console.log(jsonObject);
         layer.modulationColor = new Color(...jsonObject.modulationColor);
         for (let shape of jsonObject.shapes) {
-            layer.shapes.push(Shape.deserialize(layer, shape));
+            layer.shapes.push(Shape.deserialize(shape, layer));
         }
         return layer;
     }
@@ -37,7 +66,6 @@ export class Layer {
         this.engine = Matter.Engine.create();
         this.space = space;
         this.depth = depth;
-        this.id = math.uniformInt(0, Math.pow(10, 9));
         this.modulationColor = new Color(0, 0, 50, 0);
         this.modulationFactor = [0, 0, 0, 0];
         this.shapes = [];
@@ -46,6 +74,11 @@ export class Layer {
             this.updateCursor(event);
         });
     }
+    /**
+     * @param {Coord2DList} coords
+     * @param {Matter.Body options} options
+     * @returns {Shape} the created shape
+     */
     addShape(coords, options = {}) {
         this.shapes.push(new Shape(this, coords, options));
         return this.shapes.at(-1);
@@ -55,14 +88,15 @@ export class Layer {
             this.camera.apply(this.depth);
         }
         this.shapes.forEach((shape) => {
-            this.ctx.fillStyle = Color.interpolate(shape.fillColor, this.modulationColor, this.modulationFactor).html();
-            this.ctx.strokeStyle = Color.white().html();
-            shape.render({ fill: true, stroke: shape.hover });
+            shape.render({ fill: true, stroke: shape.hover }, this.modulationColor, this.modulationFactor);
         });
         if (this.space === "world") {
             this.camera.restore();
         }
     }
+    /**
+     * @param {MouseEvent} event
+     */
     updateCursor(event) {
         const screenCursor = [event.clientX - this.ctx.canvas.offsetLeft, event.clientY - this.ctx.canvas.offsetTop];
         this.cursor = screenCursor;
@@ -70,15 +104,14 @@ export class Layer {
             this.cursor = this.camera.coordsToWorld(screenCursor, this.depth);
         }
     }
+    /**
+     * Updates the physics of all shapes, and checks for cursor hover
+     * @param {number} dt time in seconds since last update
+     */
     update(dt) {
         if (this.runPhysics) {
             Matter.Engine.update(this.engine, dt * 1000);
         }
-        // this.shapes.forEach((shape) => {
-        //     if (shape instanceof AnimatableShape) {
-        //         shape.updateAnimation(dt);
-        //     }
-        // });
         if (this.cursor) {
             //check if mouse hovers over any shape
             const bodies = this.shapes.map((shape) => shape.body);
